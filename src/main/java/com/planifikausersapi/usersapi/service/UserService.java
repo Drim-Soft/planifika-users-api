@@ -45,7 +45,12 @@ public class UserService {
     public UserPlanifika updateStatus(Integer userId, String statusName) {
         UserPlanifika user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado con id: " + userId)).toUserPlanifika();
-
+        System.out.println(     "\n\n\n====================================================================" + "\n"   
+                            +   "Retrieve user: "       + user.getName()            + "\n"
+                            +   " Organization ID: "    + user.getIdOrganization()  + "\n"
+                            +   " Current Status ID: "  + user.getIdUserStatus()    + "\n"
+                            +   "====================================================================\n\n\n"
+                            );
         try {
             UserStatusEnum status = UserStatusEnum.valueOf(statusName.toUpperCase());
             user.setIdUserStatus(status.hashCode());
