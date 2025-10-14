@@ -4,7 +4,7 @@ public enum UserStatusEnum {
     ACTIVE(1),
     DELETED(2);
 
-    private final int id;
+    private final Integer id;
 
     UserStatusEnum(int id) {
         this.id = id;

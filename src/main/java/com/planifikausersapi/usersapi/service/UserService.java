@@ -53,7 +53,7 @@ public class UserService {
                             );
         try {
             UserStatusEnum status = UserStatusEnum.valueOf(statusName.toUpperCase());
-            user.setIdUserStatus(status.hashCode());
+            user.setIdUserStatus(status.getId());
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Estado inválido: " + statusName);
         }
@@ -65,7 +65,7 @@ public class UserService {
         UserPlanifika user = userRepository.findById(id).isPresent() ? 
                             userRepository.findById(id).get().toUserPlanifika() : null;
         if(user != null) {
-            user.setIdUserStatus(UserStatusEnum.DELETED.hashCode());
+            user.setIdUserStatus(UserStatusEnum.DELETED.getId());
             userRepository.save(user.toDtoUser());
         }
     }
