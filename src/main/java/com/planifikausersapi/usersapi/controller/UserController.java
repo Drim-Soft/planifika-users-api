@@ -3,6 +3,7 @@ package com.planifikausersapi.usersapi.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.planifikausersapi.usersapi.dto.DtoUser;
 import com.planifikausersapi.usersapi.model.UserPlanifika;
 import com.planifikausersapi.usersapi.service.UserService;
 
@@ -32,7 +33,7 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<UserPlanifika> createUser(@RequestBody UserPlanifika user) {
+    public ResponseEntity<DtoUser> createUser(@RequestBody DtoUser user) {
         return ResponseEntity.ok(userService.save(user));
     }
 
