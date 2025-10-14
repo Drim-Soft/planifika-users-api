@@ -35,6 +35,7 @@ public class AuthController {
     public Mono<ResponseEntity<Map>> login(@RequestBody Map<String, String> body) {
         String email = body.get("email");
         String password = body.get("password");
+        System.out.println("Login attempt for email: " + email);
         return authService.signIn(email, password)
                 .map(resp -> ResponseEntity.ok(resp))
                 .onErrorResume(e -> Mono.just(ResponseEntity.status(401).body(Map.of("error", e.getMessage()))));
