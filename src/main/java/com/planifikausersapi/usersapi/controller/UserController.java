@@ -34,7 +34,7 @@ public class UserController {
 
     @PostMapping
     public ResponseEntity<DtoUser> createUser(@RequestBody DtoUser user) {
-        return ResponseEntity.ok(userService.save(user));
+        return ResponseEntity.ok(userService.save(user.toUserPlanifika()).toDtoUser());
     }
 
     @PutMapping("/{id}")

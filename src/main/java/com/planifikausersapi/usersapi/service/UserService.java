@@ -23,6 +23,7 @@ public class UserService {
     }
 
     public List<UserPlanifika> findAll() {
+        System.out.println("DTO Users fetched from database:");
         List<DtoUser> dtoUsers = userRepository.findAll();
         List<UserPlanifika> usersPlanifika = new ArrayList<>();
         for (DtoUser dtoUser : dtoUsers) {
@@ -58,8 +59,10 @@ public class UserService {
     public void delete(Integer id) {
         UserPlanifika user = userRepository.findById(id).isPresent() ? 
                             userRepository.findById(id).get().toUserPlanifika() : null;
-        user.setIdUserStatus(UserStatusEnum.DELETED.hashCode());
-        userRepository.save(user.toDtoUser());
+        if(user != null) {
+            user.setIdUserStatus(UserStatusEnum.DELETED.hashCode());
+            userRepository.save(user.toDtoUser());
+        }
     }
 
 

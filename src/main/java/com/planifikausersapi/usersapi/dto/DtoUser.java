@@ -7,10 +7,10 @@ import com.planifikausersapi.usersapi.model.UserPlanifika;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import lombok.Data;
+import jakarta.persistence.Table;
 
 @Entity
-@Data
+@Table(name = "userplanifika")
 public class DtoUser {
     @Id
     @Column(name = "iduser", nullable = false)
