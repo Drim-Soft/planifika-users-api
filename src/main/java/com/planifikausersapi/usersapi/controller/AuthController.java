@@ -23,20 +23,21 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public Mono<ResponseEntity<Map<String, Object>>> signup(@RequestBody Map<String, String> body) {
-        String name = body.get("name");
-        String email = body.get("email");
-        String password = body.get("password");
-        String photoUrl = body.get("photoUrl");
+    public Mono<ResponseEntity<Map<String, Object>>> signup(@RequestBody Map<String, Object> body) {
+        String name = (String) body.get("name");
+        String email = (String) body.get("email");
+        String password = (String) body.get("password");
+        String photoUrl = (String) body.get("photoUrl");
+        Integer userRole = (Integer) body.get("userRole"); // Nuevo campo
 
-        return authService.signUp(name, email, password, photoUrl)
+        return authService.signUp(name, email, password, photoUrl, userRole)
                 .map(result -> ResponseEntity.ok(result))
                 .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
                         .body(Map.of("error", e.getMessage()))));
     }
 
     @PostMapping("/login")
-    public Mono<ResponseEntity<Map>> login(@RequestBody Map<String, String> body) {
+    public Mono<ResponseEntity<Map<String, Object>>> login(@RequestBody Map<String, String> body) {
         String email = body.get("email");
         String password = body.get("password");
         System.out.println("Login attempt for email: " + email);
@@ -55,8 +56,11 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public Mono<ResponseEntity<Map>> me(@RequestHeader("Authorization") String authorization) {
+    public Mono<ResponseEntity<Map<String, Object>>> me(@RequestHeader("Authorization") String authorization) {
         String token = authorization.replaceFirst("Bearer ", "");
-        return authService.getUser(token).map(ResponseEntity::ok);
+        return authService.getUserWithDatabaseInfo(token)
+                .map(ResponseEntity::ok)
+                .onErrorResume(e -> Mono.just(ResponseEntity.status(500)
+                        .body(Map.of("error", "Error al obtener información del usuario: " + e.getMessage()))));
     }
 }
