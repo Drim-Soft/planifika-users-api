@@ -14,25 +14,27 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+
     public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
     @PostMapping("/signup")
-    public Mono<ResponseEntity<Map<String, Object>>> signup(@RequestBody Map<String, String> body) {
-        String name = body.get("name");
-        String email = body.get("email");
-        String password = body.get("password");
-        String photoUrl = body.get("photoUrl");
+    public Mono<ResponseEntity<Map<String, Object>>> signup(@RequestBody Map<String, Object> body) {
+        String name = (String) body.get("name");
+        String email = (String) body.get("email");
+        String password = (String) body.get("password");
+        String photoUrl = (String) body.get("photoUrl");
+        Integer userRole = (Integer) body.get("userRole"); // Nuevo campo
 
-        return authService.signUp(name, email, password, photoUrl)
+        return authService.signUp(name, email, password, photoUrl, userRole)
                 .map(result -> ResponseEntity.ok(result))
                 .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
                         .body(Map.of("error", e.getMessage()))));
     }
 
     @PostMapping("/login")
-    public Mono<ResponseEntity<Map>> login(@RequestBody Map<String,String> body) {
+    public Mono<ResponseEntity<Map>> login(@RequestBody Map<String, String> body) {
         String email = body.get("email");
         String password = body.get("password");
         System.out.println("Login attempt for email: " + email);

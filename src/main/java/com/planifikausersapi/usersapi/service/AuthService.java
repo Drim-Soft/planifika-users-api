@@ -32,7 +32,7 @@ public class AuthService {
                 .build();
     }
 
-public Mono<Map<String, Object>> signUp(String name, String email, String password, String photoUrl) {
+public Mono<Map<String, Object>> signUp(String name, String email, String password, String photoUrl, Integer userRole) {
 
     // 1. DEFINE GENERIC TYPES EXPLICITLY to resolve 'Cannot infer type' errors
     ParameterizedTypeReference<Map<String, Object>> mapType = 
@@ -88,7 +88,7 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                 newUser.put("name", name);
                 newUser.put("photourl", photoUrl);
                 newUser.put("iduserstatus", 1);
-                newUser.put("idusertype", 1);
+                newUser.put("idusertype", userRole != null ? userRole : 1);
                 newUser.put("idorganization", null); 
 
                 // 2. Supabase DB (PostgREST) Call
