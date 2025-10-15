@@ -8,6 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import com.planifikausersapi.usersapi.repository.UserRepository;
+import com.planifikausersapi.usersapi.dto.DtoUser;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,12 +22,15 @@ public class AuthService {
     private final WebClient webClient;
     private final String supabaseUrl;
     private final String anonKey;
+    private final UserRepository userRepository;
 
     public AuthService(@Value("${supabase.url}") String supabaseUrl,
                        @Value("${supabase.anon.key}") String anonKey,
-                       WebClient.Builder webClientBuilder) {
+                       WebClient.Builder webClientBuilder,
+                       UserRepository userRepository) {
         this.supabaseUrl = supabaseUrl;
         this.anonKey = anonKey;
+        this.userRepository = userRepository;
         this.webClient = webClientBuilder
                 .baseUrl(supabaseUrl)
                 .defaultHeader("apiKey", anonKey)
@@ -64,6 +70,7 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
 
                 Object idCandidate = null;
                 if (response.containsKey("user")) {
+                    @SuppressWarnings("unchecked")
                     Map<String, Object> userMap = (Map<String, Object>) response.get("user");
                     idCandidate = userMap != null ? userMap.get("id") : null;
                 } else if (response.containsKey("id")) {
@@ -124,7 +131,7 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
 }
 
 
-    public Mono<Map> signIn(String email, String password) {
+    public Mono<Map<String, Object>> signIn(String email, String password) {
         return webClient.post()
                 .uri(uriBuilder -> uriBuilder.path("/auth/v1/token")
                         .queryParam("grant_type", "password")
@@ -132,15 +139,64 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(Map.of("email", email, "password", password))
                 .retrieve()
-                .bodyToMono(Map.class);
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {});
     }
 
 
-    public Mono<Map> getUser(String accessToken) {
+    public Mono<Map<String, Object>> getUser(String accessToken) {
         return webClient.get()
                 .uri("/auth/v1/user")
                 .headers(h -> h.setBearerAuth(accessToken))
                 .retrieve()
-                .bodyToMono(Map.class);
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {});
+    }
+
+    /**
+     * Obtiene la información completa del usuario combinando datos de Supabase Auth 
+     * con datos de la base de datos de la aplicación
+     */
+    public Mono<Map<String, Object>> getUserWithDatabaseInfo(String accessToken) {
+        return getUser(accessToken)
+                .flatMap((Map<String, Object> supabaseUser) -> {
+                    try {
+                        // Extraer el ID del usuario de Supabase
+                        String supabaseUserIdStr = (String) supabaseUser.get("id");
+                        if (supabaseUserIdStr == null) {
+                            return Mono.error(new RuntimeException("No se encontró el ID del usuario en Supabase"));
+                        }
+                        
+                        UUID supabaseUserId = UUID.fromString(supabaseUserIdStr);
+                        
+                        // Buscar el usuario en la base de datos de la aplicación
+                        return userRepository.findBySupabaseUserId(supabaseUserId)
+                                .map(dtoUser -> {
+                                    // Crear respuesta combinada con datos de la BD
+                                    Map<String, Object> response = new HashMap<>();
+                                    response.put("userId", dtoUser.getIdUser());
+                                    response.put("name", dtoUser.getName());
+                                    response.put("email", supabaseUser.get("email")); // Email desde Supabase
+                                    response.put("photoUrl", dtoUser.getPhotoUrl());
+                                    response.put("userType", dtoUser.getIdUserType()); // CRÍTICO: Tipo de usuario
+                                    response.put("idusertype", dtoUser.getIdUserType()); // CRÍTICO: ID del tipo de usuario
+                                    response.put("iduserstatus", dtoUser.getIdUserStatus());
+                                    response.put("idorganization", dtoUser.getIdOrganization());
+                                    response.put("supabaseUserId", dtoUser.getSupabaseUserId());
+                                    
+                                    return response;
+                                })
+                                .map(Mono::just)
+                                .orElse(Mono.error(new RuntimeException("Usuario no encontrado en la base de datos de la aplicación")));
+                                
+                    } catch (IllegalArgumentException e) {
+                        return Mono.error(new RuntimeException("Error al parsear el ID de Supabase: " + e.getMessage()));
+                    } catch (Exception e) {
+                        return Mono.error(new RuntimeException("Error al obtener información del usuario: " + e.getMessage()));
+                    }
+                })
+                .onErrorResume(e -> {
+                    System.err.println("Error en getUserWithDatabaseInfo: " + e.getMessage());
+                    e.printStackTrace();
+                    return Mono.error(e);
+                });
     }
 }

@@ -34,7 +34,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public Mono<ResponseEntity<Map>> login(@RequestBody Map<String, String> body) {
+    public Mono<ResponseEntity<Map<String, Object>>> login(@RequestBody Map<String, String> body) {
         String email = body.get("email");
         String password = body.get("password");
         System.out.println("Login attempt for email: " + email);
@@ -44,8 +44,11 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public Mono<ResponseEntity<Map>> me(@RequestHeader("Authorization") String authorization) {
+    public Mono<ResponseEntity<Map<String, Object>>> me(@RequestHeader("Authorization") String authorization) {
         String token = authorization.replaceFirst("Bearer ", "");
-        return authService.getUser(token).map(ResponseEntity::ok);
+        return authService.getUserWithDatabaseInfo(token)
+                .map(ResponseEntity::ok)
+                .onErrorResume(e -> Mono.just(ResponseEntity.status(500)
+                        .body(Map.of("error", "Error al obtener información del usuario: " + e.getMessage()))));
     }
 }
