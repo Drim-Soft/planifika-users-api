@@ -2,6 +2,7 @@
 /home/juan/Documents/TrabajosPUJ/7mo semestre/ArquiSoft/planifika-users-api/src/main/java/com/planifikausersapi/usersapi/config/SecurityConfig.java
 /home/juan/Documents/TrabajosPUJ/7mo semestre/ArquiSoft/planifika-users-api/src/main/java/com/planifikausersapi/usersapi/controller/AuthController.java
 /home/juan/Documents/TrabajosPUJ/7mo semestre/ArquiSoft/planifika-users-api/src/main/java/com/planifikausersapi/usersapi/controller/UserController.java
+/home/juan/Documents/TrabajosPUJ/7mo semestre/ArquiSoft/planifika-users-api/src/main/java/com/planifikausersapi/usersapi/dto/DtoUser.java
 /home/juan/Documents/TrabajosPUJ/7mo semestre/ArquiSoft/planifika-users-api/src/main/java/com/planifikausersapi/usersapi/dto/LoginRequest.java
 /home/juan/Documents/TrabajosPUJ/7mo semestre/ArquiSoft/planifika-users-api/src/main/java/com/planifikausersapi/usersapi/dto/LoginResponse.java
 /home/juan/Documents/TrabajosPUJ/7mo semestre/ArquiSoft/planifika-users-api/src/main/java/com/planifikausersapi/usersapi/enums/UserStatusEnum.java

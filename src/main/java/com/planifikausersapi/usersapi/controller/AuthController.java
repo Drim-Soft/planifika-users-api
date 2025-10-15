@@ -19,12 +19,16 @@ public class AuthController {
     }
 
     @PostMapping("/signup")
-    public Mono<ResponseEntity<Map>> signup(@RequestBody Map<String,String> body) {
+    public Mono<ResponseEntity<Map<String, Object>>> signup(@RequestBody Map<String, String> body) {
+        String name = body.get("name");
         String email = body.get("email");
         String password = body.get("password");
-        return authService.signUp(email, password)
-                .map(resp -> ResponseEntity.ok(resp))
-                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest().body(Map.of("error", e.getMessage()))));
+        String photoUrl = body.get("photoUrl");
+
+        return authService.signUp(name, email, password, photoUrl)
+                .map(result -> ResponseEntity.ok(result))
+                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
+                        .body(Map.of("error", e.getMessage()))));
     }
 
     @PostMapping("/login")
