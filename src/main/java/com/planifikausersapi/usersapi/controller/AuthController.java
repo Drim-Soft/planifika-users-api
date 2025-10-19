@@ -63,4 +63,21 @@ public class AuthController {
                 .onErrorResume(e -> Mono.just(ResponseEntity.status(500)
                         .body(Map.of("error", "Error al obtener información del usuario: " + e.getMessage()))));
     }
+
+    @PatchMapping("/me")
+    public Mono<ResponseEntity<Map<String, Object>>> updateMe(
+        @RequestHeader("Authorization") String authorization,
+        @RequestBody Map<String, Object> body
+    ) {
+        String token = authorization.replaceFirst("Bearer ", "");
+        String name = body.get("name") != null ? body.get("name").toString() : null;
+        String password = body.get("password") != null ? body.get("password").toString() : null;
+        String photourl = body.get("photourl") != null ? body.get("photourl").toString() : null;
+
+        return authService.updateProfile(token, name, password, photourl)
+                .map(ResponseEntity::ok)
+                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest().body(Map.of(
+                    "error", e.getMessage()
+                ))));
+    }
 }
