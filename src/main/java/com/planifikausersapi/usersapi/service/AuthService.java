@@ -40,11 +40,9 @@ public class AuthService {
 
 public Mono<Map<String, Object>> signUp(String name, String email, String password, String photoUrl, Integer userRole) {
 
-    // 1. DEFINE GENERIC TYPES EXPLICITLY to resolve 'Cannot infer type' errors
     ParameterizedTypeReference<Map<String, Object>> mapType = 
         new ParameterizedTypeReference<Map<String, Object>>() {};
     
-    // This is the CRITICAL type for the DB response: a List of Maps
     ParameterizedTypeReference<List<Map<String, Object>>> listMapType =
         new ParameterizedTypeReference<List<Map<String, Object>>>() {};
 
@@ -64,7 +62,7 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                     .defaultIfEmpty("[No response body]")
                     .flatMap(errorBody -> Mono.error(new RuntimeException("Supabase Auth Error (" + clientResponse.statusCode() + "): " + errorBody)))
             )
-            .bodyToMono(mapType) // Use explicit type for Mono<Map>
+            .bodyToMono(mapType) 
             .flatMap(response -> {
                 System.out.println("📥 Respuesta Supabase Auth: " + response);
 
@@ -81,7 +79,6 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                     return Mono.error(new RuntimeException("No se encontró el ID del usuario en la respuesta de Supabase: " + response));
                 }
 
-                // Safe UUID Parsing
                 UUID supabaseUserId;
                 try {
                     supabaseUserId = UUID.fromString(idCandidate.toString());
@@ -89,7 +86,6 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                     return Mono.error(new RuntimeException("Error al parsear ID de Supabase: " + idCandidate, e));
                 }
 
-                // Prepare DB Insertion Payload (Using HashMap for null support)
                 Map<String, Object> newUser = new HashMap<>();
                 newUser.put("supabaseuserid", supabaseUserId);
                 newUser.put("name", name);
@@ -98,7 +94,6 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                 newUser.put("idusertype", userRole != null ? userRole : 1);
                 newUser.put("idorganization", null); 
 
-                // 2. Supabase DB (PostgREST) Call
                 return webClient.post()
                         .uri("/rest/v1/userplanifika")
                         .header("Prefer", "return=representation")
@@ -110,13 +105,11 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                                 .defaultIfEmpty("[No response body]")
                                 .flatMap(errorBody -> Mono.error(new RuntimeException("Supabase DB Error (" + clientResponse.statusCode() + "): " + errorBody)))
                         )
-                        // 💥 FIX: Expect a List of Maps (listMapType) to handle the JSON array.
                         .bodyToMono(listMapType) 
                         .map(dbResponseList -> {
                             if (dbResponseList.isEmpty()) {
                                 throw new RuntimeException("Inserción en DB Supabase exitosa, pero no devolvió datos.");
                             }
-                            // Extract the first (and only) item from the list for the final response.
                             return Map.<String, Object>of(
                                     "auth", response,
                                     "db", dbResponseList.get(0)
@@ -151,15 +144,11 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {});
     }
 
-    /**
-     * Obtiene la información completa del usuario combinando datos de Supabase Auth 
-     * con datos de la base de datos de la aplicación
-     */
+
     public Mono<Map<String, Object>> getUserWithDatabaseInfo(String accessToken) {
         return getUser(accessToken)
                 .flatMap((Map<String, Object> supabaseUser) -> {
                     try {
-                        // Extraer el ID del usuario de Supabase
                         String supabaseUserIdStr = (String) supabaseUser.get("id");
                         if (supabaseUserIdStr == null) {
                             return Mono.error(new RuntimeException("No se encontró el ID del usuario en Supabase"));
@@ -167,17 +156,15 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                         
                         UUID supabaseUserId = UUID.fromString(supabaseUserIdStr);
                         
-                        // Buscar el usuario en la base de datos de la aplicación
                         return userRepository.findBySupabaseUserId(supabaseUserId)
                                 .map(dtoUser -> {
-                                    // Crear respuesta combinada con datos de la BD
                                     Map<String, Object> response = new HashMap<>();
                                     response.put("userId", dtoUser.getIdUser());
                                     response.put("name", dtoUser.getName());
-                                    response.put("email", supabaseUser.get("email")); // Email desde Supabase
+                                    response.put("email", supabaseUser.get("email")); 
                                     response.put("photoUrl", dtoUser.getPhotoUrl());
-                                    response.put("userType", dtoUser.getIdUserType()); // CRÍTICO: Tipo de usuario
-                                    response.put("idusertype", dtoUser.getIdUserType()); // CRÍTICO: ID del tipo de usuario
+                                    response.put("userType", dtoUser.getIdUserType()); 
+                                    response.put("idusertype", dtoUser.getIdUserType()); 
                                     response.put("iduserstatus", dtoUser.getIdUserStatus());
                                     response.put("idorganization", dtoUser.getIdOrganization());
                                     response.put("supabaseUserId", dtoUser.getSupabaseUserId());
@@ -201,7 +188,6 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
     }
 
     public Mono<Map<String, Object>> updateProfile(String accessToken, String name, String password, String photourl) {
-        // Validate at least one field provided
         boolean hasName = name != null && !name.isBlank();
         boolean hasPassword = password != null && !password.isBlank();
         boolean hasPhoto = photourl != null && !photourl.isBlank();
@@ -209,7 +195,6 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
             return Mono.error(new IllegalArgumentException("Debe proporcionar 'name', 'password' o 'photourl' para actualizar"));
         }
 
-        // 1) Get current Supabase user info to obtain the Supabase User ID (UUID)
         return getUser(accessToken)
             .flatMap((Map<String, Object> supabaseUser) -> {
                 String supabaseUserIdStr = (String) supabaseUser.get("id");
@@ -224,8 +209,6 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                     return Mono.error(new RuntimeException("ID de usuario Supabase inválido: " + supabaseUserIdStr));
                 }
 
-                // 2) Prepare parallel operations
-                // 2.a) Update Supabase Auth user (password and/or metadata)
                 Mono<Map<String, Object>> authUpdateMono;
                 if (hasName || hasPassword || hasPhoto) {
                     Map<String, Object> payload = new HashMap<>();
@@ -260,7 +243,6 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                     authUpdateMono = Mono.just(Map.of("skipped", true));
                 }
 
-                // 2.b) Update local DB fields if provided
                 Mono<Map<String, Object>> dbUpdateMono;
                 if (hasName || hasPhoto) {
                     dbUpdateMono = Mono.fromCallable(() -> {
@@ -282,7 +264,6 @@ public Mono<Map<String, Object>> signUp(String name, String email, String passwo
                     dbUpdateMono = Mono.just(Map.of("skipped", true));
                 }
 
-                // 3) Combine results
                 return Mono.zip(authUpdateMono, dbUpdateMono)
                     .map(tuple -> Map.<String, Object>of(
                         "auth", tuple.getT1(),

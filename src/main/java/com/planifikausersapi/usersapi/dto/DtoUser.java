@@ -92,9 +92,6 @@ public class DtoUser {
         this.supabaseUserId = supabaseUserId;
     }
 
-
-
-    // To Planifika User method
     public UserPlanifika toUserPlanifika() {
         UserPlanifika user = new UserPlanifika();
         user.setIdUser(this.idUser);
