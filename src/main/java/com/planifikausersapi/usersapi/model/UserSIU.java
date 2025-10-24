@@ -10,14 +10,11 @@ import lombok.Data;
 
 @Entity
 @Data
-public class UserPlanifika {
+public class UserSIU {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer idUser;
+    private Integer idUserSIU;
     private String name;
     private String photoUrl;
-    private Integer idUserStatus;
-    private Integer idUserType;
-    private Integer idOrganization;
     private UUID supabaseUserId;
 }
