@@ -5,7 +5,7 @@ import org.springframework.stereotype.Service;
 import com.planifikausersapi.usersapi.dto.DtoUser;
 import com.planifikausersapi.usersapi.enums.UserStatusEnum;
 import com.planifikausersapi.usersapi.model.UserPlanifika;
-import com.planifikausersapi.usersapi.repository.UserRepository;
+import com.planifikausersapi.usersapi.repository.planifika.UserRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 

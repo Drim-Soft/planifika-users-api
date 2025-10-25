@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
-import com.planifikausersapi.usersapi.repository.UserRepository;
+import com.planifikausersapi.usersapi.repository.planifika.UserRepository;
 import com.planifikausersapi.usersapi.dto.DtoUser;
 
 import java.util.HashMap;
