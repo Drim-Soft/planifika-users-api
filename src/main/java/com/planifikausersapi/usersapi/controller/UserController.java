@@ -1,60 +1,109 @@
 package com.planifikausersapi.usersapi.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.planifikausersapi.usersapi.dto.DtoUser;
 import com.planifikausersapi.usersapi.model.UserPlanifika;
 import com.planifikausersapi.usersapi.service.UserService;
+import com.planifikausersapi.usersapi.utils.ErrorResponse;
 
-import java.util.List;
-import java.util.Map;
+import jakarta.persistence.EntityNotFoundException;
 
 @RestController
 @RequestMapping("/users")
-public class UserController {   
+public class UserController {
 
     private final UserService userService;
+
     public UserController(UserService userService) {
         this.userService = userService;
     }
-    
 
     @GetMapping
-    public ResponseEntity<List<UserPlanifika>> getAllUsers() {
-        return ResponseEntity.ok(userService.findAll());
+    public ResponseEntity<Object> getAllUsers() {
+        try {
+            return ResponseEntity.ok(userService.findAll());
+        } catch (Exception e) {
+            ErrorResponse errorResponse = new ErrorResponse(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserPlanifika> getUserById(@PathVariable Integer id) {
-        return userService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Object> getUserById(@PathVariable Integer id) {
+        try {
+            return ResponseEntity.ok(userService.findById(id));
+        } catch (Exception e) {
+            ErrorResponse errorResponse = new ErrorResponse(e.getMessage());
+            if (e instanceof EntityNotFoundException) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
     }
 
     @PostMapping
-    public ResponseEntity<DtoUser> createUser(@RequestBody DtoUser user) {
-        return ResponseEntity.ok(userService.save(user.toUserPlanifika()).toDtoUser());
+    public ResponseEntity<Object> createUser(@RequestBody UserPlanifika user) {
+        try {
+            return ResponseEntity.ok(userService.save(user));
+        } catch (Exception e) {
+            ErrorResponse errorResponse = new ErrorResponse(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<UserPlanifika> updateUser(@PathVariable Integer id, @RequestBody UserPlanifika user) {
-        user.setIdUser(id);
-        return ResponseEntity.ok(userService.save(user));
+    public ResponseEntity<Object> updateUser(@PathVariable Integer id, @RequestBody UserPlanifika user) {
+        try {
+            user.setIdUser(id);
+            return ResponseEntity.ok(userService.update(user));
+        } catch (Exception e) {
+            ErrorResponse errorResponse = new ErrorResponse(e.getMessage());
+            if (e instanceof EntityNotFoundException) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<Object> patchUpdateUser(@PathVariable Integer id, @RequestBody UserPlanifika user) {
+        try {
+            user.setIdUser(id);
+            return ResponseEntity.ok(userService.patchUpdate(user));
+        } catch (Exception e) {
+            ErrorResponse errorResponse = new ErrorResponse(e.getMessage());
+            if (e instanceof EntityNotFoundException) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
     }
 
     @PatchMapping("/{id}/status/{status}")
-    public ResponseEntity<UserPlanifika> updateUserStatus(@PathVariable Integer id, @PathVariable String status) {
-        return ResponseEntity.ok(userService.updateStatus(id, status));
+    public ResponseEntity<Object> updateUserStatus(@PathVariable Integer id, @PathVariable String status) {
+        try {
+            return ResponseEntity.ok(userService.updateStatus(id, status));
+        } catch (Exception e) {
+            ErrorResponse errorResponse = new ErrorResponse(e.getMessage());
+            if (e instanceof EntityNotFoundException) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> deleteUser(@PathVariable Integer id) {
-        userService.delete(id);
-        Map<String, Object> response = Map.of(
-            "status", 200,
-            "detail", "Usuario eliminado correctamente"
-        );
-        return ResponseEntity.ok(response);
+    public ResponseEntity<Object> deleteUser(@PathVariable Integer id) {
+        try {
+            return ResponseEntity.ok(userService.delete(id));
+        } catch (Exception e) {
+            ErrorResponse errorResponse = new ErrorResponse(e.getMessage());
+            if (e instanceof EntityNotFoundException) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+            }
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
     }
 }
