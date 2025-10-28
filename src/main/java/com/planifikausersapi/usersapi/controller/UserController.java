@@ -1,5 +1,7 @@
 package com.planifikausersapi.usersapi.controller;
 
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +11,7 @@ import com.planifikausersapi.usersapi.service.UserService;
 import com.planifikausersapi.usersapi.utils.ErrorResponse;
 
 import jakarta.persistence.EntityNotFoundException;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/users")
@@ -93,6 +96,19 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
     }
+
+    @PatchMapping("{id}/organization/{organizationId}")
+    public ResponseEntity<UserPlanifika> updateOrganization(
+            @PathVariable Integer id,
+            @PathVariable Integer organizationId,
+            @RequestHeader("Authorization") String authorization) {
+        try{
+            return ResponseEntity.ok(userService.updateOrganization(id, organizationId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+    
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> deleteUser(@PathVariable Integer id) {
