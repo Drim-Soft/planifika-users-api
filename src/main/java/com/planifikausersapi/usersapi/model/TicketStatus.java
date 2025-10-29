@@ -1,7 +1,5 @@
 package com.planifikausersapi.usersapi.model;
 
-import java.util.UUID;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -12,19 +10,14 @@ import lombok.Data;
 
 @Entity
 @Data
-@Table(name = "usersiu")
-public class UserSIU {
+@Table(name = "ticketstatus")
+public class TicketStatus {
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "idusersiu")
-    private Integer idUserSIU;
+    @Column(name = "idticketstatus")
+    private Integer idTicketStatus;
     
     @Column(name = "name")
     private String name;
-    
-    @Column(name = "photourl")
-    private String photoUrl;
-    
-    @Column(name = "supabaseuserid")
-    private UUID supabaseUserId;
 }

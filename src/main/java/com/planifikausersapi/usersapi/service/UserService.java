@@ -5,7 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.planifikausersapi.usersapi.enums.UserStatusEnum;
 import com.planifikausersapi.usersapi.model.UserPlanifika;
-import com.planifikausersapi.usersapi.repository.UserRepository;
+import com.planifikausersapi.usersapi.repository.planifika.UserRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 
