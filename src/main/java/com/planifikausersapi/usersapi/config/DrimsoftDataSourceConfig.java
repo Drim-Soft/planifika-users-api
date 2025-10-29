@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.orm.jpa.EntityManagerFactoryBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
@@ -22,33 +21,30 @@ import java.util.Map;
 @Configuration
 @EnableTransactionManagement
 @EnableJpaRepositories(
-    basePackages = "com.planifikausersapi.usersapi.repository.planifika",
-    entityManagerFactoryRef = "planifikaEntityManagerFactory",
-    transactionManagerRef = "planifikaTransactionManager"
+    basePackages = "com.planifikausersapi.usersapi.repository.drimsoft",
+    entityManagerFactoryRef = "drimsoftEntityManagerFactory",
+    transactionManagerRef = "drimsoftTransactionManager"
 )
-public class DataSourceConfig {
+public class DrimsoftDataSourceConfig {
 
     @Bean
-    @Primary
-    @ConfigurationProperties("spring.datasource")
-    public DataSourceProperties planifikaDataSourceProperties() {
+    @ConfigurationProperties("drimsoft.datasource")
+    public DataSourceProperties drimsoftDataSourceProperties() {
         return new DataSourceProperties();
     }
 
     @Bean
-    @Primary
-    public DataSource planifikaDataSource() {
-        return planifikaDataSourceProperties()
+    public DataSource drimsoftDataSource() {
+        return drimsoftDataSourceProperties()
             .initializeDataSourceBuilder()
             .type(HikariDataSource.class)
             .build();
     }
 
     @Bean
-    @Primary
-    public LocalContainerEntityManagerFactoryBean planifikaEntityManagerFactory(
+    public LocalContainerEntityManagerFactoryBean drimsoftEntityManagerFactory(
             EntityManagerFactoryBuilder builder,
-            @Qualifier("planifikaDataSource") DataSource dataSource) {
+            @Qualifier("drimsoftDataSource") DataSource dataSource) {
         
         Map<String, Object> properties = new HashMap<>();
         properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
@@ -58,15 +54,14 @@ public class DataSourceConfig {
         return builder
             .dataSource(dataSource)
             .packages("com.planifikausersapi.usersapi.model")
-            .persistenceUnit("planifika")
+            .persistenceUnit("drimsoft")
             .properties(properties)
             .build();
     }
 
     @Bean
-    @Primary
-    public PlatformTransactionManager planifikaTransactionManager(
-            @Qualifier("planifikaEntityManagerFactory") EntityManagerFactory entityManagerFactory) {
+    public PlatformTransactionManager drimsoftTransactionManager(
+            @Qualifier("drimsoftEntityManagerFactory") EntityManagerFactory entityManagerFactory) {
         return new JpaTransactionManager(entityManagerFactory);
     }
 }

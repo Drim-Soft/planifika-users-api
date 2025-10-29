@@ -1,4 +1,4 @@
-package com.planifikausersapi.usersapi.repository;
+package com.planifikausersapi.usersapi.repository.planifika;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

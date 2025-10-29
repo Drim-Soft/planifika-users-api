@@ -7,7 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.planifikausersapi.usersapi.model.UserSIU;
 
-import com.planifikausersapi.usersapi.repository.SIUUserRepository;
+import com.planifikausersapi.usersapi.repository.siu.SIUUserRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 
