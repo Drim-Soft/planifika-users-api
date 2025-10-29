@@ -94,4 +94,11 @@ public class UserService {
         user.setIdUserStatus(UserStatusEnum.DELETED.getId());
         return userRepository.save(user);
     }
+
+    @Transactional
+    public UserPlanifika updateOrganization(Integer userId, Integer organizationId) {
+        UserPlanifika user = findById(userId);
+        user.setIdOrganization(organizationId);
+        return userRepository.save(user);
+    }
 }
