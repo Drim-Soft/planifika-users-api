@@ -1,0 +1,27 @@
+name: Auto Deploy on Develop
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+    types:
+      - closed
+
+jobs:
+  deploy:
+    if: github.event.pull_request.merged == true || github.event_name == 'push'
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest code
+        run: |
+          cd /home/estudiante/PLANIFIKA/planifika-users-api
+          git fetch origin develop
+          git reset --hard origin/develop
+
+      - name: Rebuild containers
+        run: |
+          cd /home/estudiante/PLANIFIKA
+          docker compose up -d --build api-users-planifika
