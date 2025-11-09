@@ -28,6 +28,14 @@ public class TicketController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ticket);
     }
 
+    @GetMapping("/paged")
+    public ResponseEntity<Map<String, Object>> getTicketsPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Map<String, Object> paged = ticketService.getTicketsPaged(page, size);
+        return ResponseEntity.ok(paged);
+    }
+
     @GetMapping
     public ResponseEntity<List<Map<String, Object>>> getAllTickets() {
         List<Map<String, Object>> tickets = ticketService.getAllTickets();

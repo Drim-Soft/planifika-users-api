@@ -5,6 +5,10 @@ import com.planifikausersapi.usersapi.model.TicketSupport;
 import com.planifikausersapi.usersapi.repository.drimsoft.TicketStatusRepository;
 import com.planifikausersapi.usersapi.repository.drimsoft.TicketSupportRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,6 +55,27 @@ public class TicketService {
         return tickets.stream()
             .map(this::mapToResponse)
             .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true, value = "drimsoftTransactionManager")
+    public Map<String, Object> getTicketsPaged(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "idTickets"));
+        Page<TicketSupport> pageResult = ticketSupportRepository.findAll(pageable);
+
+        List<Map<String, Object>> items = pageResult.getContent()
+            .stream()
+            .map(this::mapToResponse)
+            .collect(Collectors.toList());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("items", items);
+        response.put("page", pageResult.getNumber());
+        response.put("size", pageResult.getSize());
+        response.put("totalElements", pageResult.getTotalElements());
+        response.put("totalPages", pageResult.getTotalPages());
+        response.put("hasNext", pageResult.hasNext());
+        response.put("hasPrevious", pageResult.hasPrevious());
+        return response;
     }
 
     public Map<String, Object> getTicketById(Integer id) {
