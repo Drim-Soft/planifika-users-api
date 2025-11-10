@@ -38,12 +38,11 @@ public class SecurityConfig {
     private JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter defaultGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
 
-        defaultGrantedAuthoritiesConverter.setAuthorityPrefix("ROLE_"); 
+        defaultGrantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
 
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             Collection<GrantedAuthority> authorities = new ArrayList<>();
-
 
             if (jwt.getClaim("role") != null) {
                 String role = jwt.getClaimAsString("role");
@@ -53,7 +52,6 @@ public class SecurityConfig {
                 authorities.add(new SimpleGrantedAuthority("ROLE_" + jwt.getClaimAsString("user_role").toUpperCase()));
             }
 
-
             Object rolesObj = jwt.getClaim("roles");
             if (rolesObj instanceof List) {
                 @SuppressWarnings("unchecked")
@@ -61,10 +59,8 @@ public class SecurityConfig {
                 authorities.addAll(
                         roles.stream()
                                 .map(r -> new SimpleGrantedAuthority("ROLE_" + r.toUpperCase()))
-                                .toList()
-                );
+                                .toList());
             }
-
 
             Collection<SimpleGrantedAuthority> scopeAuthorities = defaultGrantedAuthoritiesConverter.convert(jwt)
                     .stream()
@@ -79,20 +75,20 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource)
+            throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable) // API REST; si usas cookies, reevalúa
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/public/**", "/auth/**", "/actuator/health").permitAll()
+                        .requestMatchers("/public/**", "/auth/**",
+                                "/actuator/**", "/api/v1/actuator/**")
+                        .permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
-                        )
-                );
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())));
 
         return http.build();
     }
