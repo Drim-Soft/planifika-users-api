@@ -1,0 +1,597 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Generador de Dashboard HTML para Reportes de Pruebas Maven
+Lee los archivos XML de Maven Surefire y genera un dashboard HTML interactivo
+"""
+
+import os
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from pathlib import Path
+import json
+
+# Configuración
+REPORTS_DIR = Path('target/surefire-reports')
+OUTPUT_FILE = Path('test-report.html')
+
+def parse_surefire_report(xml_file):
+    """Parsea un archivo XML de Maven Surefire y extrae la información de las pruebas"""
+    try:
+        tree = ET.parse(xml_file)
+        root = tree.getroot()
+        
+        # Extraer estadísticas del testsuite
+        suite_name = root.get('name', 'Unknown')
+        total_tests = int(root.get('tests', 0))
+        errors = int(root.get('errors', 0))
+        failures = int(root.get('failures', 0))
+        skipped = int(root.get('skipped', 0))
+        time = float(root.get('time', 0))
+        
+        passed = total_tests - errors - failures - skipped
+        
+        # Extraer información de cada testcase
+        testcases = []
+        for testcase in root.findall('testcase'):
+            test_name = testcase.get('name', 'Unknown')
+            class_name = testcase.get('classname', 'Unknown')
+            test_time = float(testcase.get('time', 0))
+            
+            status = 'passed'
+            message = ''
+            error_type = ''
+            
+            # Verificar si hay error, failure o skipped
+            error_elem = testcase.find('error')
+            failure_elem = testcase.find('failure')
+            skipped_elem = testcase.find('skipped')
+            
+            if error_elem is not None:
+                status = 'error'
+                message = error_elem.text or error_elem.get('message', '')
+                error_type = error_elem.get('type', 'Error')
+            elif failure_elem is not None:
+                status = 'failure'
+                message = failure_elem.text or failure_elem.get('message', '')
+                error_type = failure_elem.get('type', 'Failure')
+            elif skipped_elem is not None:
+                status = 'skipped'
+                message = skipped_elem.text or skipped_elem.get('message', '')
+            
+            testcases.append({
+                'name': test_name,
+                'class': class_name,
+                'status': status,
+                'time': test_time,
+                'message': message[:500] if message else '',  # Limitar longitud
+                'error_type': error_type
+            })
+        
+        return {
+            'suite_name': suite_name,
+            'total_tests': total_tests,
+            'passed': passed,
+            'errors': errors,
+            'failures': failures,
+            'skipped': skipped,
+            'time': time,
+            'testcases': testcases
+        }
+    except Exception as e:
+        print(f"Error al parsear {xml_file}: {e}")
+        return None
+
+def collect_reports():
+    """Recopila todos los reportes XML de Maven Surefire"""
+    if not REPORTS_DIR.exists():
+        print(f"[ERROR] No se encontro el directorio {REPORTS_DIR}")
+        print("   Ejecuta primero: mvn test o .\\mvnw.cmd test")
+        return []
+    
+    xml_files = list(REPORTS_DIR.glob('TEST-*.xml'))
+    
+    if not xml_files:
+        print(f"[ERROR] No se encontraron reportes XML en {REPORTS_DIR}")
+        print("   Ejecuta primero: mvn test o .\\mvnw.cmd test")
+        return []
+    
+    print(f"[OK] Encontrados {len(xml_files)} archivo(s) de reporte")
+    
+    reports = []
+    for xml_file in xml_files:
+        report = parse_surefire_report(xml_file)
+        if report:
+            reports.append(report)
+    
+    return reports
+
+def generate_html(reports):
+    """Genera el dashboard HTML con todos los reportes"""
+    if not reports:
+        return None
+    
+    # Calcular estadísticas globales
+    total_tests = sum(r['total_tests'] for r in reports)
+    total_passed = sum(r['passed'] for r in reports)
+    total_errors = sum(r['errors'] for r in reports)
+    total_failures = sum(r['failures'] for r in reports)
+    total_skipped = sum(r['skipped'] for r in reports)
+    total_time = sum(r['time'] for r in reports)
+    
+    # Calcular porcentajes
+    success_rate = (total_passed / total_tests * 100) if total_tests > 0 else 0
+    
+    # Generar fecha y hora
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Generar HTML
+    html = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Pruebas - Planifika Users API</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }}
+        
+        .container {{
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }}
+        
+        .header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }}
+        
+        .header h1 {{
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }}
+        
+        .header .timestamp {{
+            opacity: 0.9;
+            font-size: 0.9em;
+        }}
+        
+        .stats-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }}
+        
+        .stat-card {{
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s;
+        }}
+        
+        .stat-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }}
+        
+        .stat-card.passed {{
+            border-left: 5px solid #28a745;
+        }}
+        
+        .stat-card.failed {{
+            border-left: 5px solid #dc3545;
+        }}
+        
+        .stat-card.errors {{
+            border-left: 5px solid #ffc107;
+        }}
+        
+        .stat-card.skipped {{
+            border-left: 5px solid #6c757d;
+        }}
+        
+        .stat-card.total {{
+            border-left: 5px solid #007bff;
+        }}
+        
+        .stat-value {{
+            font-size: 2.5em;
+            font-weight: bold;
+            margin: 10px 0;
+        }}
+        
+        .stat-label {{
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }}
+        
+        .progress-bar-container {{
+            margin: 30px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }}
+        
+        .progress-bar {{
+            width: 100%;
+            height: 40px;
+            background: #e9ecef;
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+        }}
+        
+        .progress-fill {{
+            height: 100%;
+            background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+        }}
+        
+        .progress-text {{
+            text-align: center;
+            margin-top: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+        }}
+        
+        .suites-section {{
+            padding: 30px;
+        }}
+        
+        .suite-card {{
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        
+        .suite-header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s;
+        }}
+        
+        .suite-header:hover {{
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        }}
+        
+        .suite-header h3 {{
+            margin: 0;
+            font-size: 1.3em;
+        }}
+        
+        .suite-stats {{
+            display: flex;
+            gap: 15px;
+            font-size: 0.9em;
+            opacity: 0.9;
+        }}
+        
+        .suite-content {{
+            padding: 20px;
+            display: none;
+        }}
+        
+        .suite-content.active {{
+            display: block;
+        }}
+        
+        .test-table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }}
+        
+        .test-table th {{
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }}
+        
+        .test-table td {{
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+        }}
+        
+        .test-table tr:hover {{
+            background: #f8f9fa;
+        }}
+        
+        .status-badge {{
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }}
+        
+        .status-passed {{
+            background: #d4edda;
+            color: #155724;
+        }}
+        
+        .status-failure {{
+            background: #f8d7da;
+            color: #721c24;
+        }}
+        
+        .status-error {{
+            background: #fff3cd;
+            color: #856404;
+        }}
+        
+        .status-skipped {{
+            background: #e2e3e5;
+            color: #383d41;
+        }}
+        
+        .error-details {{
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }}
+        
+        .time-badge {{
+            background: #e7f3ff;
+            color: #004085;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+        }}
+        
+        .footer {{
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+        }}
+        
+        @media (max-width: 768px) {{
+            .stats-grid {{
+                grid-template-columns: 1fr;
+            }}
+            
+            .header h1 {{
+                font-size: 1.8em;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Dashboard de Pruebas</h1>
+            <div class="timestamp">Generado el {now}</div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card total">
+                <div class="stat-label">Total de Pruebas</div>
+                <div class="stat-value">{total_tests}</div>
+            </div>
+            <div class="stat-card passed">
+                <div class="stat-label">Exitosas</div>
+                <div class="stat-value" style="color: #28a745;">{total_passed}</div>
+            </div>
+            <div class="stat-card failed">
+                <div class="stat-label">Fallidas</div>
+                <div class="stat-value" style="color: #dc3545;">{total_failures}</div>
+            </div>
+            <div class="stat-card errors">
+                <div class="stat-label">Errores</div>
+                <div class="stat-value" style="color: #ffc107;">{total_errors}</div>
+            </div>
+            <div class="stat-card skipped">
+                <div class="stat-label">Omitidas</div>
+                <div class="stat-value" style="color: #6c757d;">{total_skipped}</div>
+            </div>
+            <div class="stat-card total">
+                <div class="stat-label">Tiempo Total</div>
+                <div class="stat-value" style="color: #007bff;">{total_time:.2f}s</div>
+            </div>
+        </div>
+        
+        <div class="progress-bar-container">
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {success_rate}%;">
+                    {success_rate:.1f}%
+                </div>
+            </div>
+            <div class="progress-text">
+                Tasa de Éxito: {success_rate:.1f}% ({total_passed} de {total_tests} pruebas)
+            </div>
+        </div>
+        
+        <div class="suites-section">
+            <h2 style="margin-bottom: 20px; color: #333;">📋 Suites de Pruebas</h2>
+"""
+    
+    # Agregar cada suite de pruebas
+    for idx, report in enumerate(reports):
+        suite_id = f"suite-{idx}"
+        suite_passed = report['passed']
+        suite_failed = report['failures'] + report['errors']
+        suite_total = report['total_tests']
+        suite_time = report['time']
+        
+        html += f"""
+            <div class="suite-card">
+                <div class="suite-header" onclick="toggleSuite('{suite_id}')">
+                    <h3>{report['suite_name']}</h3>
+                    <div class="suite-stats">
+                        <span>✅ {suite_passed}</span>
+                        <span>❌ {suite_failed}</span>
+                        <span>⏱️ {suite_time:.2f}s</span>
+                        <span>📊 {suite_total} pruebas</span>
+                    </div>
+                </div>
+                <div class="suite-content" id="{suite_id}">
+                    <table class="test-table">
+                        <thead>
+                            <tr>
+                                <th>Prueba</th>
+                                <th>Clase</th>
+                                <th>Estado</th>
+                                <th>Tiempo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+"""
+        
+        for testcase in report['testcases']:
+            status_class = f"status-{testcase['status']}"
+            status_text = {
+                'passed': '✅ Exitoso',
+                'failure': '❌ Fallido',
+                'error': '⚠️ Error',
+                'skipped': '⏭️ Omitido'
+            }.get(testcase['status'], testcase['status'])
+            
+            error_details = ''
+            if testcase['status'] in ['failure', 'error'] and testcase['message']:
+                error_details = f"""
+                            <tr>
+                                <td colspan="4">
+                                    <div class="error-details">
+                                        <strong>{testcase['error_type']}:</strong><br>
+                                        {testcase['message']}
+                                    </div>
+                                </td>
+                            </tr>
+"""
+            
+            html += f"""
+                            <tr>
+                                <td><strong>{testcase['name']}</strong></td>
+                                <td>{testcase['class']}</td>
+                                <td><span class="status-badge {status_class}">{status_text}</span></td>
+                                <td><span class="time-badge">{testcase['time']:.3f}s</span></td>
+                            </tr>
+{error_details}
+"""
+        
+        html += """
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+"""
+    
+    html += """
+        </div>
+        
+        <div class="footer">
+            <p>Generado automáticamente por generate_test_report.py</p>
+            <p>Planifika Users API - Dashboard de Pruebas</p>
+        </div>
+    </div>
+    
+    <script>
+        function toggleSuite(suiteId) {
+            const content = document.getElementById(suiteId);
+            content.classList.toggle('active');
+        }
+        
+        // Expandir primera suite por defecto
+        document.addEventListener('DOMContentLoaded', function() {
+            const firstSuite = document.querySelector('.suite-content');
+            if (firstSuite) {
+                firstSuite.classList.add('active');
+            }
+        });
+    </script>
+</body>
+</html>
+"""
+    
+    return html
+
+def main():
+    """Función principal"""
+    import sys
+    import io
+    
+    # Configurar stdout para UTF-8 en Windows (solo una vez)
+    if sys.platform == 'win32' and not isinstance(sys.stdout, io.TextIOWrapper):
+        try:
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        except (AttributeError, ValueError):
+            # Si ya está configurado o hay error, continuar
+            pass
+    
+    print("Generando dashboard de pruebas...")
+    print(f"Buscando reportes en: {REPORTS_DIR.absolute()}")
+    
+    reports = collect_reports()
+    
+    if not reports:
+        return 1
+    
+    print(f"[OK] Procesados {len(reports)} suite(s) de pruebas")
+    
+    html = generate_html(reports)
+    
+    if html:
+        OUTPUT_FILE.write_text(html, encoding='utf-8')
+        print(f"[OK] Dashboard generado exitosamente: {OUTPUT_FILE.absolute()}")
+        print(f"\nPara ver el dashboard:")
+        print(f"   1. Abre {OUTPUT_FILE} en tu navegador")
+        print(f"   2. O ejecuta: python -m http.server 8000")
+        print(f"      Luego abre: http://localhost:8000/{OUTPUT_FILE}")
+        return 0
+    else:
+        print("[ERROR] Error al generar el dashboard")
+        return 1
+
+if __name__ == '__main__':
+    exit(main())
+
