@@ -9,6 +9,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import com.planifikausersapi.usersapi.model.UserPlanifika;
+import com.planifikausersapi.usersapi.enums.UserStatusEnum;
 import com.planifikausersapi.usersapi.repository.planifika.UserRepository;
 
 import java.util.HashMap;
@@ -172,24 +173,74 @@ public class AuthService {
                         // Buscar el usuario en la base de datos de la aplicación
                         return userRepository.findBySupabaseUserId(supabaseUserId)
                                 .map(userPlanifika -> {
-                                    // Crear respuesta combinada con datos de la BD
                                     Map<String, Object> response = new HashMap<>();
                                     response.put("userId", userPlanifika.getIdUser());
                                     response.put("name", userPlanifika.getName());
-                                    response.put("email", supabaseUser.get("email")); // Email desde Supabase
+                                    response.put("email", supabaseUser.get("email"));
                                     response.put("photoUrl", userPlanifika.getPhotoUrl());
-                                    response.put("userType", userPlanifika.getIdUserType()); // CRÍTICO: Tipo de usuario
-                                    response.put("idusertype", userPlanifika.getIdUserType()); // CRÍTICO: ID del tipo de
-                                                                                         // usuario
+                                    response.put("userType", userPlanifika.getIdUserType());
+                                    response.put("idusertype", userPlanifika.getIdUserType());
                                     response.put("iduserstatus", userPlanifika.getIdUserStatus());
                                     response.put("idorganization", userPlanifika.getIdOrganization());
                                     response.put("supabaseUserId", userPlanifika.getSupabaseUserId());
-
+                                    response.put("created", false);
                                     return response;
                                 })
                                 .map(Mono::just)
-                                .orElse(Mono.error(new RuntimeException(
-                                        "Usuario no encontrado en la base de datos de la aplicación")));
+                                .orElseGet(() -> {
+                                    // Auto-provision del usuario si no existe
+                                    try {
+                                        UserPlanifika newUser = new UserPlanifika();
+                                        newUser.setSupabaseUserId(supabaseUserId);
+                                        // Intentar extraer metadata de Supabase
+                                        String email = (String) supabaseUser.get("email");
+                                        String name = null;
+                                        String photoUrl = null;
+                                        Object metaObj = supabaseUser.get("user_metadata");
+                                        if (metaObj instanceof Map<?, ?> metaMap) {
+                                            Object fullName = metaMap.get("full_name");
+                                            Object rawName = metaMap.get("name");
+                                            name = fullName != null ? fullName.toString() : (rawName != null ? rawName.toString() : null);
+                                            Object photo = metaMap.get("photourl");
+                                            if (photo == null) photo = metaMap.get("avatar_url");
+                                            photoUrl = photo != null ? photo.toString() : null;
+                                        }
+                                        if (name == null && email != null) {
+                                            name = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+                                        }
+                                        newUser.setName(name);
+                                        newUser.setPhotoUrl(photoUrl);
+                                        newUser.setIdUserStatus(UserStatusEnum.ACTIVE.getId());
+                                        // Derivar tipo de usuario por rol del JWT si existe (admin => 2, default => 1)
+                                        Integer derivedType = 1;
+                                        Object roleClaim = supabaseUser.get("role");
+                                        if (roleClaim != null && roleClaim.toString().equalsIgnoreCase("admin")) {
+                                            derivedType = 2; // Ajusta según tu catálogo real
+                                        }
+                                        Object userRoleClaim = supabaseUser.get("user_role");
+                                        if (userRoleClaim != null && userRoleClaim.toString().equalsIgnoreCase("admin")) {
+                                            derivedType = 2;
+                                        }
+                                        newUser.setIdUserType(derivedType);
+                                        newUser.setIdOrganization(null);
+
+                                        UserPlanifika saved = userRepository.save(newUser);
+                                        Map<String, Object> response = new HashMap<>();
+                                        response.put("userId", saved.getIdUser());
+                                        response.put("name", saved.getName());
+                                        response.put("email", email);
+                                        response.put("photoUrl", saved.getPhotoUrl());
+                                        response.put("userType", saved.getIdUserType());
+                                        response.put("idusertype", saved.getIdUserType());
+                                        response.put("iduserstatus", saved.getIdUserStatus());
+                                        response.put("idorganization", saved.getIdOrganization());
+                                        response.put("supabaseUserId", saved.getSupabaseUserId());
+                                        response.put("created", true);
+                                        return Mono.just(response);
+                                    } catch (Exception ex) {
+                                        return Mono.error(new RuntimeException("Error al auto-provisionar usuario local: " + ex.getMessage()));
+                                    }
+                                });
 
                     } catch (IllegalArgumentException e) {
                         return Mono
