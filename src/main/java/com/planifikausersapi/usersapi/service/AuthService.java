@@ -40,7 +40,7 @@ public class AuthService {
     }
 
     public Mono<Map<String, Object>> signUp(String name, String email, String password, String photoUrl,
-            Integer userRole) {
+            Integer userRole, Integer organizationId) {
 
         // 1. DEFINE GENERIC TYPES EXPLICITLY to resolve 'Cannot infer type' errors
         ParameterizedTypeReference<Map<String, Object>> mapType = new ParameterizedTypeReference<Map<String, Object>>() {
@@ -98,7 +98,7 @@ public class AuthService {
                     newUser.put("photourl", photoUrl);
                     newUser.put("iduserstatus", 1);
                     newUser.put("idusertype", userRole != null ? userRole : 1);
-                    newUser.put("idorganization", null);
+                    newUser.put("idorganization", organizationId); // Usar el organizationId recibido (puede ser null)
 
                     // 2. Supabase DB (PostgREST) Call
                     return webClient.post()
@@ -200,9 +200,11 @@ public class AuthService {
                                         if (metaObj instanceof Map<?, ?> metaMap) {
                                             Object fullName = metaMap.get("full_name");
                                             Object rawName = metaMap.get("name");
-                                            name = fullName != null ? fullName.toString() : (rawName != null ? rawName.toString() : null);
+                                            name = fullName != null ? fullName.toString()
+                                                    : (rawName != null ? rawName.toString() : null);
                                             Object photo = metaMap.get("photourl");
-                                            if (photo == null) photo = metaMap.get("avatar_url");
+                                            if (photo == null)
+                                                photo = metaMap.get("avatar_url");
                                             photoUrl = photo != null ? photo.toString() : null;
                                         }
                                         if (name == null && email != null) {
@@ -218,7 +220,8 @@ public class AuthService {
                                             derivedType = 2; // Ajusta según tu catálogo real
                                         }
                                         Object userRoleClaim = supabaseUser.get("user_role");
-                                        if (userRoleClaim != null && userRoleClaim.toString().equalsIgnoreCase("admin")) {
+                                        if (userRoleClaim != null
+                                                && userRoleClaim.toString().equalsIgnoreCase("admin")) {
                                             derivedType = 2;
                                         }
                                         newUser.setIdUserType(derivedType);
@@ -238,7 +241,8 @@ public class AuthService {
                                         response.put("created", true);
                                         return Mono.just(response);
                                     } catch (Exception ex) {
-                                        return Mono.error(new RuntimeException("Error al auto-provisionar usuario local: " + ex.getMessage()));
+                                        return Mono.error(new RuntimeException(
+                                                "Error al auto-provisionar usuario local: " + ex.getMessage()));
                                     }
                                 });
 
@@ -262,64 +266,70 @@ public class AuthService {
         boolean hasPassword = password != null && !password.isBlank();
         boolean hasPhoto = photourl != null && !photourl.isBlank();
         if (!hasName && !hasPassword && !hasPhoto) {
-            return Mono.error(new IllegalArgumentException("Debe proporcionar 'name', 'password' o 'photourl' para actualizar"));
+            return Mono.error(
+                    new IllegalArgumentException("Debe proporcionar 'name', 'password' o 'photourl' para actualizar"));
         }
 
         return getUser(accessToken)
-            .flatMap((Map<String, Object> supabaseUser) -> {
-                String supabaseUserIdStr = (String) supabaseUser.get("id");
-                if (supabaseUserIdStr == null) {
-                    return Mono.error(new RuntimeException("No se encontró el ID del usuario en Supabase"));
-                }
-
-                UUID supabaseUserId;
-                try {
-                    supabaseUserId = UUID.fromString(supabaseUserIdStr);
-                } catch (IllegalArgumentException e) {
-                    return Mono.error(new RuntimeException("ID de usuario Supabase inválido: " + supabaseUserIdStr));
-                }
-
-                Mono<Map<String, Object>> authUpdateMono;
-                if (hasName || hasPassword || hasPhoto) {
-                    Map<String, Object> payload = new HashMap<>();
-                    if (hasPassword) {
-                        payload.put("password", password);
+                .flatMap((Map<String, Object> supabaseUser) -> {
+                    String supabaseUserIdStr = (String) supabaseUser.get("id");
+                    if (supabaseUserIdStr == null) {
+                        return Mono.error(new RuntimeException("No se encontró el ID del usuario en Supabase"));
                     }
+
+                    UUID supabaseUserId;
+                    try {
+                        supabaseUserId = UUID.fromString(supabaseUserIdStr);
+                    } catch (IllegalArgumentException e) {
+                        return Mono
+                                .error(new RuntimeException("ID de usuario Supabase inválido: " + supabaseUserIdStr));
+                    }
+
+                    Mono<Map<String, Object>> authUpdateMono;
+                    if (hasName || hasPassword || hasPhoto) {
+                        Map<String, Object> payload = new HashMap<>();
+                        if (hasPassword) {
+                            payload.put("password", password);
+                        }
+                        if (hasName || hasPhoto) {
+                            Map<String, Object> data = new HashMap<>();
+                            if (hasName) {
+                                data.put("name", name);
+                                data.put("full_name", name);
+                            }
+                            if (hasPhoto) {
+                                data.put("photourl", photourl);
+                            }
+                            payload.put("data", data);
+                        }
+
+                        authUpdateMono = webClient.put()
+                                .uri("/auth/v1/user")
+                                .headers(h -> h.setBearerAuth(accessToken))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(payload)
+                                .retrieve()
+                                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                                        clientResponse -> clientResponse.bodyToMono(String.class)
+                                                .defaultIfEmpty("[No response body]")
+                                                .flatMap(errorBody -> Mono
+                                                        .error(new RuntimeException("Supabase Auth Update Error ("
+                                                                + clientResponse.statusCode() + "): " + errorBody))))
+                                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
+                                });
+                    } else {
+                        authUpdateMono = Mono.just(Map.of("skipped", true));
+                    }
+
+                    Mono<Map<String, Object>> dbUpdateMono;
                     if (hasName || hasPhoto) {
-                        Map<String, Object> data = new HashMap<>();
-                        if (hasName) {
-                            data.put("name", name);
-                            data.put("full_name", name);
-                        }
-                        if (hasPhoto) {
-                            data.put("photourl", photourl);
-                        }
-                        payload.put("data", data);
-                    }
-
-                    authUpdateMono = webClient.put()
-                        .uri("/auth/v1/user")
-                        .headers(h -> h.setBearerAuth(accessToken))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(payload)
-                        .retrieve()
-                        .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(), clientResponse ->
-                            clientResponse.bodyToMono(String.class)
-                                .defaultIfEmpty("[No response body]")
-                                .flatMap(errorBody -> Mono.error(new RuntimeException("Supabase Auth Update Error (" + clientResponse.statusCode() + "): " + errorBody)))
-                        )
-                        .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {});
-                } else {
-                    authUpdateMono = Mono.just(Map.of("skipped", true));
-                }
-
-                Mono<Map<String, Object>> dbUpdateMono;
-                if (hasName || hasPhoto) {
-                    dbUpdateMono = Mono.fromCallable(() -> {
+                        dbUpdateMono = Mono.fromCallable(() -> {
                             return userRepository.findBySupabaseUserId(supabaseUserId)
                                     .map(userPlanifika -> {
-                                        if (hasName) userPlanifika.setName(name);
-                                        if (hasPhoto) userPlanifika.setPhotoUrl(photourl);
+                                        if (hasName)
+                                            userPlanifika.setName(name);
+                                        if (hasPhoto)
+                                            userPlanifika.setPhotoUrl(photourl);
                                         UserPlanifika saved = userRepository.save(userPlanifika);
                                         Map<String, Object> result = new HashMap<>();
                                         result.put("iduser", saved.getIdUser());
@@ -327,24 +337,26 @@ public class AuthService {
                                         result.put("photourl", saved.getPhotoUrl());
                                         return result;
                                     })
-                                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado en la base de datos de la aplicación"));
+                                    .orElseThrow(() -> new RuntimeException(
+                                            "Usuario no encontrado en la base de datos de la aplicación"));
                         })
-                        .onErrorResume(e -> Mono.error(new RuntimeException("Error al actualizar datos en la base de datos: " + e.getMessage())));
-                } else {
-                    dbUpdateMono = Mono.just(Map.of("skipped", true));
-                }
+                                .onErrorResume(e -> Mono.error(new RuntimeException(
+                                        "Error al actualizar datos en la base de datos: " + e.getMessage())));
+                    } else {
+                        dbUpdateMono = Mono.just(Map.of("skipped", true));
+                    }
 
-                return Mono.zip(authUpdateMono, dbUpdateMono)
-                    .map(tuple -> Map.<String, Object>of(
-                        "auth", tuple.getT1(),
-                        "db", tuple.getT2(),
-                        "supabaseUserId", supabaseUserId
-                    ));
-            })
-            .onErrorResume(e -> {
-                e.printStackTrace();
-                String errorMessage = e.getMessage() != null ? e.getMessage() : "Error desconocido al actualizar el perfil";
-                return Mono.error(new RuntimeException(errorMessage));
-            });
+                    return Mono.zip(authUpdateMono, dbUpdateMono)
+                            .map(tuple -> Map.<String, Object>of(
+                                    "auth", tuple.getT1(),
+                                    "db", tuple.getT2(),
+                                    "supabaseUserId", supabaseUserId));
+                })
+                .onErrorResume(e -> {
+                    e.printStackTrace();
+                    String errorMessage = e.getMessage() != null ? e.getMessage()
+                            : "Error desconocido al actualizar el perfil";
+                    return Mono.error(new RuntimeException(errorMessage));
+                });
     }
 }

@@ -33,7 +33,24 @@ public class AuthController {
         String photoUrl = (String) body.get("photoUrl");
         Integer userRole = (Integer) body.get("userRole"); // Nuevo campo
 
-        return authService.signUp(name, email, password, photoUrl, userRole)
+        // Extraer organizationId (puede venir como Integer o como String)
+        Integer organizationId = null;
+        Object orgIdObj = body.get("organizationId");
+        if (orgIdObj != null) {
+            if (orgIdObj instanceof Integer) {
+                organizationId = (Integer) orgIdObj;
+            } else if (orgIdObj instanceof String) {
+                try {
+                    organizationId = Integer.parseInt((String) orgIdObj);
+                } catch (NumberFormatException e) {
+                    // Si no se puede parsear, se deja como null
+                }
+            } else if (orgIdObj instanceof Number) {
+                organizationId = ((Number) orgIdObj).intValue();
+            }
+        }
+
+        return authService.signUp(name, email, password, photoUrl, userRole, organizationId)
                 .map(result -> ResponseEntity.ok(result))
                 .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
                         .body(Map.of("error", e.getMessage()))));
@@ -77,7 +94,8 @@ public class AuthController {
                     HttpStatus status;
                     if (rawMsg.toLowerCase().contains("usuario no encontrado")) {
                         status = HttpStatus.NOT_FOUND; // Usuario inexistente en la BD de la aplicación
-                    } else if (rawMsg.toLowerCase().contains("parsear") || rawMsg.toLowerCase().contains("id de supabase")) {
+                    } else if (rawMsg.toLowerCase().contains("parsear")
+                            || rawMsg.toLowerCase().contains("id de supabase")) {
                         status = HttpStatus.BAD_REQUEST; // Token/ID mal formado
                     } else {
                         status = HttpStatus.INTERNAL_SERVER_ERROR; // Resto de casos
@@ -85,16 +103,14 @@ public class AuthController {
                     return Mono.just(ResponseEntity.status(status).body(Map.of(
                             "error", userFacingMsg,
                             "status", status.value(),
-                            "code", status.getReasonPhrase()
-                    )));
+                            "code", status.getReasonPhrase())));
                 });
     }
 
     @PatchMapping("/me")
     public Mono<ResponseEntity<Map<String, Object>>> updateMe(
-        @RequestHeader("Authorization") String authorization,
-        @RequestBody Map<String, Object> body
-    ) {
+            @RequestHeader("Authorization") String authorization,
+            @RequestBody Map<String, Object> body) {
         String token = authorization.replaceFirst("Bearer ", "");
         String name = body.get("name") != null ? body.get("name").toString() : null;
         String password = body.get("password") != null ? body.get("password").toString() : null;
@@ -103,7 +119,6 @@ public class AuthController {
         return authService.updateProfile(token, name, password, photourl)
                 .map(ResponseEntity::ok)
                 .onErrorResume(e -> Mono.just(ResponseEntity.badRequest().body(Map.of(
-                    "error", e.getMessage()
-                ))));
+                        "error", e.getMessage()))));
     }
 }
