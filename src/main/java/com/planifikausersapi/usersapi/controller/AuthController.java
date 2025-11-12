@@ -70,8 +70,24 @@ public class AuthController {
         String token = authorization.replaceFirst("Bearer ", "");
         return authService.getUserWithDatabaseInfo(token)
                 .map(ResponseEntity::ok)
-                .onErrorResume(e -> Mono.just(ResponseEntity.status(500)
-                        .body(Map.of("error", "Error al obtener información del usuario: " + e.getMessage()))));
+                .onErrorResume(e -> {
+                    String rawMsg = e.getMessage() != null ? e.getMessage() : "Error desconocido";
+                    String userFacingMsg = "Error al obtener información del usuario: " + rawMsg;
+                    // Clasificación básica de errores
+                    HttpStatus status;
+                    if (rawMsg.toLowerCase().contains("usuario no encontrado")) {
+                        status = HttpStatus.NOT_FOUND; // Usuario inexistente en la BD de la aplicación
+                    } else if (rawMsg.toLowerCase().contains("parsear") || rawMsg.toLowerCase().contains("id de supabase")) {
+                        status = HttpStatus.BAD_REQUEST; // Token/ID mal formado
+                    } else {
+                        status = HttpStatus.INTERNAL_SERVER_ERROR; // Resto de casos
+                    }
+                    return Mono.just(ResponseEntity.status(status).body(Map.of(
+                            "error", userFacingMsg,
+                            "status", status.value(),
+                            "code", status.getReasonPhrase()
+                    )));
+                });
     }
 
     @PatchMapping("/me")
