@@ -28,6 +28,7 @@
 	</scm>
 	<properties>
 		<java.version>17</java.version>
+		<jacoco.version>0.8.8</jacoco.version>
 	</properties>
 	<dependencies>
 		<!-- Data JPA -->
@@ -129,6 +130,41 @@
 						</exclude>
 					</excludes>
 				</configuration>
+			</plugin>
+			<!-- Plugin de JaCoCo para cobertura -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<executions>
+					<!-- Agente para recopilar datos durante las pruebas -->
+					<execution>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<!-- Genera el reporte XML después de las pruebas -->
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+						<configuration>
+							<reports>
+								<xml enabled="true" />
+								<html enabled="false" />
+								<csv enabled="false" />
+							</reports>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- Plugin Sonar para ejecutar análisis desde Maven -->
+			<plugin>
+				<groupId>org.sonarsource.scanner.maven</groupId>
+				<artifactId>sonar-maven-plugin</artifactId>
+				<version>3.10.0.2594</version>
 			</plugin>
 		</plugins>
 	</build>
