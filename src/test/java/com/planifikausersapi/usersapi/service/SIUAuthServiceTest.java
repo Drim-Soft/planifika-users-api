@@ -187,7 +187,6 @@ class SIUAuthServiceTest {
         doReturn(Mono.just(authResponse)).when(responseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any());
         when(userService.findBySupabaseId(SIU_USER_SUPABASE_ID))
             .thenReturn(testUserPlanifika);
-        when(userService.save(any(UserPlanifika.class))).thenReturn(testUserPlanifika);
 
         // Usar reflection para establecer el serviceKey
         try {

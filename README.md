@@ -24,3 +24,13 @@ docker run --env-file .env -p 8080:8080 pl-users-api
 - `GET /users` - Listar usuarios
 - `POST /users` - Crear usuario
 - `GET /users/{id}` - Obtener usuario por ID
+
+ejecutar sonar:
+curl http://localhost:9000/api/authentication/validate -u "sqp_28616d39877f01c5a0881e04373636ba8bd43cd5:"
+
+FUNCIONO ASÍ EN GIT BASH:
+$mvn clean verify sonar:sonar \
+  -Dsonar.projectKey=planfuapi \
+  -Dsonar.projectName='planfuapi' \
+  -Dsonar.host.url=http://localhost:9000 \
+  -Dsonar.token=sqp_28616d39877f01c5a0881e04373636ba8bd43cd5

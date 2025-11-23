@@ -68,9 +68,10 @@ public class SIUAuthService {
               System.out.println("⚠️ ADVERTENCIA: Usuario tiene ID inválido: " + user.getIdUser());
               needsUpdate = true;
             }
-            if (user.getIdUserType() == null || user.getIdUserType() != 3) {
-              System.out.println("⚠️ ADVERTENCIA: Usuario no tiene idUserType=3. Actual: " + user.getIdUserType());
-              user.setIdUserType(3); // Forzar tipo estudiante
+            // Solo forzar idUserType=3 si es null o 0 (datos inválidos), no si ya tiene un tipo válido diferente
+            if (user.getIdUserType() == null || user.getIdUserType() == 0) {
+              System.out.println("⚠️ ADVERTENCIA: Usuario no tiene idUserType válido. Actual: " + user.getIdUserType());
+              user.setIdUserType(3); // Forzar tipo estudiante solo si es inválido
               needsUpdate = true;
             }
             if (user.getIdUserStatus() == null || user.getIdUserStatus() == 0) {
@@ -91,7 +92,7 @@ public class SIUAuthService {
             if (user.getIdUserType() != null && user.getIdUserType() == 3) {
               result.put("access_token", serviceKey);
               System.out.println("✅ Estudiante detectado (idUserType=3), usando SERVICE_KEY para autenticación");
-              System.out.println("SERVICE_KEY: " + serviceKey.substring(0, 50) + "...");
+              System.out.println("SERVICE_KEY: " + serviceKey.substring(0, Math.min(50, serviceKey.length())) + "...");
             } else {
               result.put("access_token", (String) authResponse.get("access_token"));
               System.out.println("⚠️ Usuario NO es estudiante (idUserType=" + user.getIdUserType() + "), usando token de usuario");
@@ -108,7 +109,7 @@ public class SIUAuthService {
             if (newUser.getIdUserType() != null && newUser.getIdUserType() == 3) {
               result.put("access_token", serviceKey);
               System.out.println("✅ Nuevo estudiante creado (idUserType=3), usando SERVICE_KEY para autenticación");
-              System.out.println("SERVICE_KEY: " + serviceKey.substring(0, 50) + "...");
+              System.out.println("SERVICE_KEY: " + serviceKey.substring(0, Math.min(50, serviceKey.length())) + "...");
             } else {
               result.put("access_token", (String) authResponse.get("access_token"));
               System.out.println("⚠️ Nuevo usuario NO es estudiante (idUserType=" + newUser.getIdUserType() + "), usando token de usuario");

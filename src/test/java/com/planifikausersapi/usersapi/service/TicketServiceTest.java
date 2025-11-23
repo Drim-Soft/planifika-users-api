@@ -353,6 +353,77 @@ class TicketServiceTest {
         assertTrue(((List<?>) result.get("items")).isEmpty());
     }
 
+    @Test
+    @DisplayName("Debería actualizar solo idDrimsoftUser del ticket")
+    void testUpdateTicket_OnlyDrimsoftUser() {
+        // Given
+        when(ticketSupportRepository.findById(1)).thenReturn(Optional.of(testTicket));
+        when(ticketSupportRepository.save(any(TicketSupport.class))).thenAnswer(invocation -> 
+            invocation.getArgument(0));
+        when(ticketStatusRepository.findById(1)).thenReturn(Optional.of(testStatus));
+
+        // When
+        Map<String, Object> result = ticketService.updateTicket(1, null, null, 50);
+
+        // Then
+        assertNotNull(result);
+        verify(ticketSupportRepository, times(1)).save(any(TicketSupport.class));
+    }
+
+    @Test
+    @DisplayName("Debería retornar lista vacía cuando no hay tickets por usuario")
+    void testGetTicketsByPlanifikaUser_EmptyList() {
+        // Given
+        when(ticketSupportRepository.findByIdPlanifikaUser(100)).thenReturn(Arrays.asList());
+
+        // When
+        List<Map<String, Object>> result = ticketService.getTicketsByPlanifikaUser(100);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Debería retornar lista vacía cuando no hay tickets por estado")
+    void testGetTicketsByStatus_EmptyList() {
+        // Given
+        when(ticketSupportRepository.findByIdTicketStatus(1)).thenReturn(Arrays.asList());
+
+        // When
+        List<Map<String, Object>> result = ticketService.getTicketsByStatus(1);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Debería manejar paginación con múltiples páginas")
+    void testGetTicketsPaged_MultiplePages() {
+        // Given
+        Pageable pageable = PageRequest.of(1, 5);
+        Page<TicketSupport> page = new PageImpl<>(
+            Arrays.asList(testTicket, createTicket(2, "Ticket 2")), 
+            pageable, 
+            12
+        );
+        
+        when(ticketSupportRepository.findAll(any(Pageable.class))).thenReturn(page);
+        when(ticketStatusRepository.findById(1)).thenReturn(Optional.of(testStatus));
+
+        // When
+        Map<String, Object> result = ticketService.getTicketsPaged(1, 5);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.get("page"));
+        assertEquals(5, result.get("size"));
+        assertEquals(12L, result.get("totalElements"));
+        assertTrue((Boolean) result.get("hasNext"));
+        assertTrue((Boolean) result.get("hasPrevious"));
+    }
+
     // Helper method
     private TicketSupport createTicket(Integer id, String title) {
         TicketSupport ticket = new TicketSupport();

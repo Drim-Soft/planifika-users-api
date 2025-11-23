@@ -114,14 +114,39 @@ class AuthServiceTest {
         dbUser.put("supabaseuserid", testSupabaseUserId.toString());
         List<Map<String, Object>> dbResponseList = List.of(dbUser);
 
-        when(webClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
-        when(requestBodySpec.contentType(any(org.springframework.http.MediaType.class))).thenReturn(requestBodySpec);
-        doReturn(requestHeadersSpec).when(requestBodySpec).bodyValue(any());
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.onStatus(any(), any())).thenReturn(responseSpec);
-        doReturn(Mono.just(authResponse)).when(responseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any());
-        doReturn(Mono.just(dbResponseList)).when(responseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<List<Map<String, Object>>>>any());
+        // Mock para la primera llamada (auth signup)
+        ResponseSpec authResponseSpec = mock(ResponseSpec.class);
+        RequestBodySpec authRequestBodySpec = mock(RequestBodySpec.class);
+        RequestHeadersSpec<?> authRequestHeadersSpec = mock(RequestHeadersSpec.class);
+        RequestBodyUriSpec authRequestBodyUriSpec = mock(RequestBodyUriSpec.class);
+        
+        // Mock para la segunda llamada (DB insert)
+        ResponseSpec dbResponseSpec = mock(ResponseSpec.class);
+        RequestBodySpec dbRequestBodySpec = mock(RequestBodySpec.class);
+        RequestHeadersSpec<?> dbRequestHeadersSpec = mock(RequestHeadersSpec.class);
+        RequestBodyUriSpec dbRequestBodyUriSpec = mock(RequestBodyUriSpec.class);
+        
+        // Configurar webClient.post() para retornar diferentes RequestBodyUriSpec según el orden
+        when(webClient.post())
+            .thenReturn(authRequestBodyUriSpec)  // Primera llamada: auth signup
+            .thenReturn(dbRequestBodyUriSpec);    // Segunda llamada: DB insert
+        
+        // Configurar primera llamada (auth signup)
+        when(authRequestBodyUriSpec.uri(ArgumentMatchers.contains("/auth/v1/signup"))).thenReturn(authRequestBodySpec);
+        when(authRequestBodySpec.contentType(any(org.springframework.http.MediaType.class))).thenReturn(authRequestBodySpec);
+        doReturn(authRequestHeadersSpec).when(authRequestBodySpec).bodyValue(any());
+        when(authRequestHeadersSpec.retrieve()).thenReturn(authResponseSpec);
+        when(authResponseSpec.onStatus(any(), any())).thenReturn(authResponseSpec);
+        doReturn(Mono.just(authResponse)).when(authResponseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any());
+        
+        // Configurar segunda llamada (DB insert)
+        when(dbRequestBodyUriSpec.uri(ArgumentMatchers.contains("/rest/v1/userplanifika"))).thenReturn(dbRequestBodySpec);
+        when(dbRequestBodySpec.header(anyString(), anyString())).thenReturn(dbRequestBodySpec);
+        when(dbRequestBodySpec.contentType(any(org.springframework.http.MediaType.class))).thenReturn(dbRequestBodySpec);
+        doReturn(dbRequestHeadersSpec).when(dbRequestBodySpec).bodyValue(any());
+        when(dbRequestHeadersSpec.retrieve()).thenReturn(dbResponseSpec);
+        when(dbResponseSpec.onStatus(any(), any())).thenReturn(dbResponseSpec);
+        doReturn(Mono.just(dbResponseList)).when(dbResponseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<List<Map<String, Object>>>>any());
 
         // When
         Mono<Map<String, Object>> result = authService.signUp(testName, testEmail, testPassword, testPhotoUrl, userRole);
@@ -295,16 +320,24 @@ class AuthServiceTest {
         Map<String, Object> authUpdateResponse = new HashMap<>();
         authUpdateResponse.put("id", testSupabaseUserId.toString());
 
+        // Mock para getUser (GET request)
+        ResponseSpec getUserResponseSpec = mock(ResponseSpec.class);
         doReturn(requestHeadersUriSpec).when(webClient).get();
-        when(webClient.put()).thenReturn(requestBodyUriSpec);
         doReturn(requestHeadersSpec).when(requestHeadersUriSpec).uri(anyString());
         doReturn(requestHeadersSpec).when(requestHeadersSpec).headers(ArgumentMatchers.<java.util.function.Consumer<org.springframework.http.HttpHeaders>>any());
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(getUserResponseSpec);
+        doReturn(Mono.just(supabaseUser)).when(getUserResponseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any());
+        
+        // Mock para updateProfile (PUT request)
+        ResponseSpec updateResponseSpec = mock(ResponseSpec.class);
+        when(webClient.put()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
+        doReturn(requestBodySpec).when(requestBodySpec).headers(ArgumentMatchers.<java.util.function.Consumer<org.springframework.http.HttpHeaders>>any());
         when(requestBodySpec.contentType(any(org.springframework.http.MediaType.class))).thenReturn(requestBodySpec);
-        doReturn(requestHeadersSpec).when(requestBodySpec).bodyValue(any());
-        doReturn(Mono.just(supabaseUser)).when(responseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any());
-        doReturn(Mono.just(authUpdateResponse)).when(responseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any());
+        doReturn(requestBodySpec).when(requestBodySpec).bodyValue(any());
+        when(requestBodySpec.retrieve()).thenReturn(updateResponseSpec);
+        when(updateResponseSpec.onStatus(any(), any())).thenReturn(updateResponseSpec);
+        doReturn(Mono.just(authUpdateResponse)).when(updateResponseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any());
         when(userRepository.findBySupabaseUserId(testSupabaseUserId))
             .thenReturn(Optional.of(testUser));
         when(userRepository.save(any(UserPlanifika.class))).thenAnswer(invocation -> {
@@ -358,17 +391,24 @@ class AuthServiceTest {
         Map<String, Object> authUpdateResponse = new HashMap<>();
         authUpdateResponse.put("id", testSupabaseUserId.toString());
 
+        // Mock para getUser (GET request)
+        ResponseSpec getUserResponseSpec = mock(ResponseSpec.class);
         doReturn(requestHeadersUriSpec).when(webClient).get();
-        when(webClient.put()).thenReturn(requestBodyUriSpec);
         doReturn(requestHeadersSpec).when(requestHeadersUriSpec).uri(anyString());
         doReturn(requestHeadersSpec).when(requestHeadersSpec).headers(ArgumentMatchers.<java.util.function.Consumer<org.springframework.http.HttpHeaders>>any());
+        when(requestHeadersSpec.retrieve()).thenReturn(getUserResponseSpec);
+        doReturn(Mono.just(supabaseUser)).when(getUserResponseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any());
+        
+        // Mock para updateProfile (PUT request)
+        ResponseSpec updateResponseSpec = mock(ResponseSpec.class);
+        when(webClient.put()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
+        doReturn(requestBodySpec).when(requestBodySpec).headers(ArgumentMatchers.<java.util.function.Consumer<org.springframework.http.HttpHeaders>>any());
         when(requestBodySpec.contentType(any(org.springframework.http.MediaType.class))).thenReturn(requestBodySpec);
-        doReturn(requestHeadersSpec).when(requestBodySpec).bodyValue(any());
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.onStatus(any(), any())).thenReturn(responseSpec);
-        doReturn(Mono.just(supabaseUser)).when(responseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any());
-        doReturn(Mono.just(authUpdateResponse)).when(responseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any());
+        doReturn(requestBodySpec).when(requestBodySpec).bodyValue(any());
+        when(requestBodySpec.retrieve()).thenReturn(updateResponseSpec);
+        when(updateResponseSpec.onStatus(any(), any())).thenReturn(updateResponseSpec);
+        doReturn(Mono.just(authUpdateResponse)).when(updateResponseSpec).bodyToMono(ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any());
 
         // When
         Mono<Map<String, Object>> result = authService.updateProfile(accessToken, null, newPassword, null);

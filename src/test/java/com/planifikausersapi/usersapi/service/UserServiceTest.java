@@ -326,6 +326,93 @@ class UserServiceTest {
         verify(userRepository, times(1)).findAll();
     }
 
+    @Test
+    @DisplayName("Debería actualizar todos los campos en patchUpdate")
+    void testPatchUpdate_AllFields() {
+        // Given
+        UserPlanifika updatedUser = new UserPlanifika();
+        updatedUser.setIdUser(1);
+        updatedUser.setName("New Name");
+        updatedUser.setPhotoUrl("https://example.com/new-photo.jpg");
+        updatedUser.setIdUserStatus(2);
+        updatedUser.setIdUserType(2);
+        updatedUser.setIdOrganization(200);
+
+        when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
+        when(userRepository.save(any(UserPlanifika.class))).thenAnswer(invocation -> 
+            invocation.getArgument(0));
+
+        // When
+        UserPlanifika result = userService.patchUpdate(updatedUser);
+
+        // Then
+        assertEquals("New Name", result.getName());
+        assertEquals("https://example.com/new-photo.jpg", result.getPhotoUrl());
+        assertEquals(2, result.getIdUserStatus());
+        assertEquals(2, result.getIdUserType());
+        assertEquals(200, result.getIdOrganization());
+    }
+
+    @Test
+    @DisplayName("Debería actualizar solo idUserStatus en patchUpdate")
+    void testPatchUpdate_OnlyStatus() {
+        // Given
+        UserPlanifika updatedUser = new UserPlanifika();
+        updatedUser.setIdUser(1);
+        updatedUser.setIdUserStatus(3);
+
+        when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
+        when(userRepository.save(any(UserPlanifika.class))).thenAnswer(invocation -> 
+            invocation.getArgument(0));
+
+        // When
+        UserPlanifika result = userService.patchUpdate(updatedUser);
+
+        // Then
+        assertEquals(3, result.getIdUserStatus());
+        assertEquals(testUser.getName(), result.getName()); // No cambió
+    }
+
+    @Test
+    @DisplayName("Debería actualizar solo idUserType en patchUpdate")
+    void testPatchUpdate_OnlyUserType() {
+        // Given
+        UserPlanifika updatedUser = new UserPlanifika();
+        updatedUser.setIdUser(1);
+        updatedUser.setIdUserType(5);
+
+        when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
+        when(userRepository.save(any(UserPlanifika.class))).thenAnswer(invocation -> 
+            invocation.getArgument(0));
+
+        // When
+        UserPlanifika result = userService.patchUpdate(updatedUser);
+
+        // Then
+        assertEquals(5, result.getIdUserType());
+        assertEquals(testUser.getName(), result.getName()); // No cambió
+    }
+
+    @Test
+    @DisplayName("Debería actualizar solo idOrganization en patchUpdate")
+    void testPatchUpdate_OnlyOrganization() {
+        // Given
+        UserPlanifika updatedUser = new UserPlanifika();
+        updatedUser.setIdUser(1);
+        updatedUser.setIdOrganization(300);
+
+        when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
+        when(userRepository.save(any(UserPlanifika.class))).thenAnswer(invocation -> 
+            invocation.getArgument(0));
+
+        // When
+        UserPlanifika result = userService.patchUpdate(updatedUser);
+
+        // Then
+        assertEquals(300, result.getIdOrganization());
+        assertEquals(testUser.getName(), result.getName()); // No cambió
+    }
+
     // Helper method
     private UserPlanifika createUser(Integer id, String name) {
         UserPlanifika user = new UserPlanifika();
